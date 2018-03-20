@@ -2,6 +2,9 @@ FROM alpine:3.6
 
 MAINTAINER Rik van der Kemp <rik@h1.nl>
 
+ARG JPEGOPTIM_VERSION=1.4.4
+ARG OPTIPNG_VERSION=0.7.6
+
 ADD https://php.codecasts.rocks/php-alpine.rsa.pub /etc/apk/keys/php-alpine.rsa.pub
 
 RUN echo "@php http://php.codecasts.rocks/v3.6/php-7.1" >> /etc/apk/repositories
@@ -21,12 +24,46 @@ RUN apk add --update  \
     curl \
     sed \
     tar \
+    vim \
+    zsh \
     libxml2-dev \
     freetype-dev \
     libpng-dev \
     libjpeg-turbo-dev \
-    libmcrypt-dev
+    libmcrypt-dev \ 
+    alpine-sdk
 
+# Install image optimizers
+# JpegOptim
+RUN mkdir -p /usr/src/jpegoptim /source \
+      && wget -O - https://github.com/tjko/jpegoptim/archive/RELEASE.${JPEGOPTIM_VERSION}.tar.gz | tar xz -C /usr/src/jpegoptim --strip-components=1 \
+      && cd /usr/src/jpegoptim \
+      && ./configure \
+      && make \
+      && make strip \
+      && make install \
+      && rm -rf /usr/src/jpegoptim
+
+# OptiPNG
+RUN mkdir -p /usr/src/optipng /source \
+      && wget -O - https://sourceforge.net/projects/optipng/files/OptiPNG/optipng-0.7.6/optipng-${OPTIPNG_VERSION}.tar.gz | tar xz -C /usr/src/optipng --strip-components=1 \
+      && cd /usr/src/optipng \
+      && ./configure \
+      && make \
+      && make install \
+      && rm -rf /usr/src/optipng \
+      && cd /usr/bin && ln -s /usr/local/bin/jpegoptim  \
+      && cd /usr/bin && ln -s /usr/local/bin/optipng
+
+RUN  apk del \
+           alpine-sdk \
+           ca-certificates \
+      && rm -rf /var/cache/apk/*
+
+
+
+
+# Install PHP
 RUN apk add --update \
         "php7@php" \
         "php7-common@php" \
@@ -90,7 +127,12 @@ RUN apk add --update \
         "php7-xdebug@php"
 
 
-
+# WKHTMLTOPDF
+RUN apk add qt5-qtbase-dev \
+            wkhtmltopdf \
+            --no-cache \
+            --repository http://dl-3.alpinelinux.org/alpine/edge/testing/ \
+            --allow-untrusted
 
 RUN mkdir -p /run/nginx
 RUN rm /etc/nginx/conf.d/default.conf
@@ -122,7 +164,10 @@ RUN sed -i "/;zend_extension=xdebug.so/c\zend_extension=xdebug.so" /etc/php7/con
 RUN sed -i "/;realpath_cache_size = .*/c\realpath_cache_size=4096K" /etc/php7/php.ini \
     && sed -i "/;realpath_cache_ttl = .*/c\realpath_cache_ttl=600" /etc/php7/php.ini \
     && sed -i "/; sys_temp_dir = .*/c\sys_temp_dir=/var/www/var/cache" /etc/php7/php.ini \
-    && sed -i "/;opcache.max_accelerated_files=2000/c\opcache.max_accelerated_files=20000" /etc/php7/php.ini
+    && sed -i "/;opcache.max_accelerated_files=2000/c\opcache.max_accelerated_files=20000" /etc/php7/php.ini \
+    && sed -i "/memory_limit .*/c\memory_limit = 1024M" /etc/php7/php.ini \
+    && sed -i "/post_max_size .*/c\post_max_size = 20M" /etc/php7/php.ini \
+    && sed -i "/upload_max_filesize .*/c\upload_max_filesize = 20M" /etc/php7/php.ini
 
 
 # Blackfire
