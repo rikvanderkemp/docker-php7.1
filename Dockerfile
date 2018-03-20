@@ -1,6 +1,6 @@
 FROM alpine:3.6
 
-MAINTAINER Rik van der Kemp <rik@h1.nl>
+MAINTAINER Rik van der Kemp <rik@mief.nl>
 
 ARG JPEGOPTIM_VERSION=1.4.4
 ARG OPTIPNG_VERSION=0.7.6
